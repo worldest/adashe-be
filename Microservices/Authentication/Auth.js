@@ -19,10 +19,135 @@ const HeaderToken = require('../../Tokenization/HeaderToken');
 const { VerifyToken } = require('../../Tokenization/Verify');
 const validator = require('../../Services/Validator');
 const sendSMSTermii = require('../../Services/SMSTermii');
+const { Encrypt, Decrypt } = require("../../Tokenization/Encryption")
 // connection.connect();
 // connection.query("ALTER USER 'sql8634749' IDENTIFIED WITH mysql_native_password BY 'ewRgR277LS'", function(error, results, fields){
 //     console.log(error)
 // })
+
+
+router.post("/login", async function (req, res, next) {
+
+    if (!req.body.userid) {
+        res.status(400).send({
+            ...StatusCodes.MissingPayload,
+            errorMessage: "Email/Phone is required"
+        })
+        return null
+    }
+    const { userid } = req.body;
+    const country_code = req.body.country_code || "+234"
+
+    const otp = await otpGenerator.generate(6, {
+        digits: true,
+        lowerCaseAlphabets: false,
+        upperCaseAlphabets: false,
+        specialChars: false
+    });
+
+    let country_code_ = country_code.includes("+") ? country_code : "+" + country_code
+
+
+    connection.query(`SELECT * FROM users WHERE email = ? OR phone = ?`, [userid, userid], async function (error, results, fields) {
+        // if (error) throw error;
+
+        if (error !== null) {
+            res.status(500).send({
+                ...StatusCodes.ServerError,
+                errorMessage: "Query error, please retry later"
+            });
+            return null
+        }
+        if (results.length <= 0) {
+            res.status(404).send({
+                ...StatusCodes.NotFound,
+                errorMessage: "No user found with ID",
+                message: "No user found with ID",
+            });
+            return null
+        } else {
+            let user = results[0]
+            let { user_id, password } = user;
+
+            let passwordDecrypt = await Decrypt(password);
+            console.log(passwordDecrypt)
+            if (passwordDecrypt === req.body.password) {
+                res.status(200).send({
+                    ...StatusCodes.Success,
+                    message: "Login successful",
+                    user: {
+                        user_id,
+                        token: user.token
+                    }
+                });
+            } else {
+                res.status(401).send({
+                    ...StatusCodes.Success,
+                    message: "Password is not correct.",
+                });
+            }
+
+        }
+    });
+
+
+})
+
+router.post("/register", async function (req, res, next) {
+
+
+    const { email, phone, first_name, last_name, password } = req.body;
+    console.log(password)
+    if (password.length < 6) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Password should be greater than or equal to 6 characters"
+        })
+        return null
+    }
+
+    if (!email || !phone || !first_name || !last_name || !password) {
+        res.status(400).send({
+            ...StatusCodes.MissingPayload,
+            errorMessage: "All fields are required"
+        })
+        return null
+    }
+
+    connection.query(`SELECT * FROM users WHERE email = ? OR phone = ?`, [email, phone], async function (error, results, fields) {
+        // if (error) throw error;
+
+        if (error !== null) {
+            res.status(500).send({
+                ...StatusCodes.ServerError,
+                errorMessage: "Query error, please retry later"
+            });
+            return null
+        }
+        if (results.length > 0) {
+            res.status(404).send({
+                ...StatusCodes.NotFound,
+                errorMessage: "User with that phone or email exists",
+                errorMessage: "User with that phone or email exists"
+            });
+            return null
+        } else {
+            const passwordEncrypt = await Encrypt(password)
+            const user_id = await generateID();
+            const Date_ = new Date();
+            const token = await Encrypt(Date_.toString());
+            await connection.query(`INSERT INTO users (first_name, last_name, email, phone, user_id, password, token) VALUES (?, ?, ?, ?, ?, ?, ?)`, [first_name, last_name, email, phone, user_id, passwordEncrypt, token]);
+            res.status(200).send({
+                ...StatusCodes.Success,
+                message: "Registration successful. Proceed to login",
+
+            });
+
+        }
+    });
+
+
+})
 
 router.post("/validate_phone", async function (req, res, next) {
 

@@ -35,7 +35,7 @@ app.use(cors({
 app.use("/", (req, res) => {
   res.send({
     ...StatusCodes.Success,
-    statusMessage: "Plazar is open and ready to accept request",
+    statusMessage: "Adashe is open and ready to accept request",
     db_status: "Ok",
     API_status: "Ok",
     server_health: "running",

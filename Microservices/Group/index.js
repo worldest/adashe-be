@@ -75,7 +75,9 @@ router.post("/create", async function (req, res, next) {
     let m = date.getMonth() + 1;
     let y = date.getFullYear();
     let nextPayment = `${y}-${m}-${d}`
-    await connection.query("INSERT INTO groups (group_name, group_desc, host, status, payment_interval, start_date, next_payment) VALUES (?, ?, ?, ?, ?, ?, ?)", [group_name, group_description, userid, '1', payment_interval, start_date, nextPayment]);
+    const insert = await connection.query("INSERT INTO groups (group_name, group_desc, host, status, payment_interval, start_date, next_payment) VALUES (?, ?, ?, ?, ?, ?, ?)", [group_name, group_description, userid, '1', payment_interval, start_date, nextPayment]);
+    console.log(insert);
+    await connection.query("INSERT INTO group_members (host, user_id, group_id, status) VALUES (?, ?, ?, ?)", [userid, userid, insert.insertId, '1']);
     res.status(200).send({
         ...StatusCodes.Success,
         message: "Group Created Successfully"
@@ -115,6 +117,77 @@ router.get("/fetch/:id", async function (req, res, next) {
     res.status(200).send({
         ...StatusCodes.Success,
         payload: getGroup[0]
+    })
+
+
+
+})
+
+router.get("/get/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT * FROM groups WHERE host = ?", [id])
+    if (getGroup.length <= 0) {
+        res.status(404).send({
+            ...StatusCodes.NotFound,
+            payload: {},
+            errorMessage: "Group not found"
+        })
+        return null
+    }
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
+router.get("/member/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT * FROM group_members JOIN groups ON groups.id = group_members.group_id WHERE user_id = ?", [id])
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
     })
 
 

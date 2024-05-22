@@ -76,7 +76,7 @@ app.use(async (req, res, next) => {
   console.log("USER", ref)
   var endpoint = req.hostname + req.url;
 
-  await connection.query(`INSERT INTO logs (route_link, query, body, ref) VALUES ('${endpoint}', '${req.query ? JSON.stringify(req.query) : 'n/a'}', '${req.body ? JSON.stringify(req.body) : 'n/a'}', '${ref}')`)
+  await connection.query(`INSERT INTO logs (route_link, query, body, ref) VALUES ('${endpoint}', '${req.query ? JSON.stringify(req.query) : "n/a"}', '${req.body ? JSON.stringify(req.body) : "n/a"}', '${ref}')`)
   const containsWord = containsWordFromArray(userAgent, device);
   if (containsWord === true) {
     console.log("EXIST")
@@ -97,6 +97,13 @@ app.use(async (req, res, next) => {
 
 const Authentication = require("./Microservices/Authentication/Auth")
 app.use("/api/v1/auth", Authentication)
+const Group = require("./Microservices/Group/index")
+app.use("/api/v1/group", Group);
+const Users = require("./Microservices/Users/index")
+app.use("/api/v1/user", Users);
+const Payments = require("./Microservices/Payments/index")
+app.use("/api/v1/payments", Payments);
+
 
 function containsWordFromArray(string, wordsArray) {
   // Convert the string to lowercase for case-insensitive comparison

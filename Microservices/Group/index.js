@@ -114,7 +114,7 @@ router.get("/fetch/:id", async function (req, res, next) {
         })
         return null
     }
-    const getMembers = await connection.query("SELECT * FROM group_members WHERE group_id = ?", [id])
+    const getMembers = await connection.query("SELECT * FROM group_members JOIN users ON group_members.user_id = users.user_id WHERE group_id = ?", [id])
     res.status(200).send({
         ...StatusCodes.Success,
         payload: getGroup[0],

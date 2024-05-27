@@ -399,7 +399,8 @@ router.post("/invite", async function (req, res, next) {
         })
         return null
     }
-    await connection.query("INSERT INTO group_members (host, user_id, group_id) VALUES (?, ?, ?)", [userid, invited_userid, group_id]);
+    const invitedId = getInvitedUser[0].user_id;
+    await connection.query("INSERT INTO group_members (host, user_id, group_id) VALUES (?, ?, ?)", [userid, invitedId, group_id]);
     res.status(200).send({
         ...StatusCodes.Success,
         message: `${getInvitedUser[0].first_name} has been invited successfully`

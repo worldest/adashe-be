@@ -20,7 +20,7 @@
   "dependencies": {
     "@cypress/request": "^3.0.1",
     "@elasticemail/elasticemail-client": "^4.0.23",
-    "@redis/client": "^1.5.14",
+    "@redis/client": "^1.5.16",
     "add": "^2.0.6",
     "axios": "1.6.4",
     "base64-js": "^1.5.1",

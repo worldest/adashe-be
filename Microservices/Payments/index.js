@@ -41,7 +41,7 @@ router.post("/submit_request", async function (req, res, next) {
         });
         return null
     }
-    const { group_id, amount, userid, comment } = req.body;
+    const { group_id, amount, userid, comment, receipt } = req.body;
     if (!group_id || !amount || !userid || !comment) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
@@ -67,7 +67,7 @@ router.post("/submit_request", async function (req, res, next) {
         })
         return null
     }
-    await connection.query("INSERT INTO group_txn (group_id, user_id, amount, comment) VALUES (?, ?, ?, ?)", [group_id, userid, amount, comment])
+    await connection.query("INSERT INTO group_txn (group_id, user_id, amount, receipt, comment) VALUES (?, ?, ?, ?, ?)", [group_id, userid, amount, receipt, comment])
     res.status(200).send({
         ...StatusCodes.Success,
         message: "Request submitted successfully for approval"

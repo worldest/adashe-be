@@ -41,8 +41,8 @@ router.post("/create", async function (req, res, next) {
         });
         return null
     }
-    const { userid, group_name, group_description = "N/A", payment_interval = "daily", start_date } = req.body;
-    if (!userid || !group_name || !start_date) {
+    const { userid, group_name, group_description = "N/A", payment_interval = "daily", start_date = "Not set" } = req.body;
+    if (!userid || !group_name) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "Missing field in payload"
@@ -81,6 +81,245 @@ router.post("/create", async function (req, res, next) {
     res.status(200).send({
         ...StatusCodes.Success,
         message: "Group Created Successfully"
+    })
+})
+
+router.post("/startGroup", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { userid, group_id, start_date } = req.body;
+    if (!userid || !group_id) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Missing field in payload"
+        })
+        return null
+    }
+    const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+    if (getUser.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "User not found."
+        })
+        return null
+    }
+    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ?", [group_id])
+    if (getGroup.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Group not found."
+        })
+        return null
+    }
+    var date = new Date(start_date);
+
+    // add a day
+    const { payment_interval, group_round } = getGroup[0]
+    let day;
+    if (payment_interval === "daily") {
+        day = 1
+    } else if (payment_interval === "weekly") {
+        day = 7
+    } else if (payment_interval === "monthly") {
+        day = 30
+    } else if (payment_interval === "biannual") {
+        day = 180
+    }
+    date.setDate(date.getDate() + day);
+    let d = date.getDate();
+    let m = date.getMonth() + 1;
+    let y = date.getFullYear();
+    let nextPayment = `${y}-${m}-${d}`
+    await connection.query("UPDATE groups SET group_status='running', start_date = ?, next_payment = ? WHERE id=?", [start_date, nextPayment, group_id]);
+    const getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY RAND() LIMIT 1", [group_id, group_round])
+    await connection.query("UPDATE group_members SET current_round = '0' WHERE group_id = ?", [group_id])
+    await connection.query("UPDATE group_members SET payout_status = '1', current_round = '1' WHERE id = ?", [getAUser[0].id])
+    res.status(200).send({
+        ...StatusCodes.Success,
+        message: "Success"
+    })
+})
+
+router.post("/sendMessage", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { userid, group_id, message } = req.body;
+    if (!userid || !group_id) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Missing field in payload"
+        })
+        return null
+    }
+    const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+    if (getUser.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "User not found."
+        })
+        return null
+    }
+    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ?", [group_id])
+    if (getGroup.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Group not found."
+        })
+        return null
+    }
+
+    await connection.query("INSERT INTO group_message (group_id, user_id, username, message) VALUES (?, ?, ?, ?)", [group_id, userid, getUser[0].first_name + " " + getUser[0].last_name, message]);
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        message: "Success"
+    })
+})
+
+router.post("/processPayout", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { userid, group_id, amount, receipt, receiver_id } = req.body;
+    if (!userid || !group_id || !amount || !receipt || !receiver_id) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Missing field in payload"
+        })
+        return null
+    }
+    const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+    if (getUser.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "User not found."
+        })
+        return null
+    }
+    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ?", [group_id])
+    if (getGroup.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Group not found."
+        })
+        return null
+    }
+    const { group_round } = getGroup[0]
+    await connection.query("INSERT INTO group_payouts (host, user_id, group_id, receipt, amount) VALUES (?, ?, ?, ?, ?)", [userid, receiver_id, group_id, receipt, amount])
+    let getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY RAND() LIMIT 1", [group_id, group_round]);
+    if (getAUser.length > 0) {
+
+        const payout_status = parseInt(getAUser[0].payout_status) + 1;
+        await connection.query("UPDATE group_members SET current_round = '0' WHERE group_id = ?", [group_id]);
+        await connection.query("UPDATE group_members SET payout_status = ?, current_round = '1' WHERE id = ?", [payout_status, getAUser[0].id]);
+    } else {
+        let updateGroupRound = parseInt(group_round) + 1
+        await connection.query("UPDATE groups SET group_round = group_round + 1 WHERE id = ?", [group_id]);
+        let getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY RAND() LIMIT 1", [group_id, updateGroupRound])
+        const payout_status = parseInt(getAUser[0].payout_status) + 1;
+        await connection.query("UPDATE group_members SET current_round = '0' WHERE group_id = ?", [group_id]);
+        await connection.query("UPDATE group_members SET payout_status = ?, current_round = '1' WHERE id = ?", [payout_status, getAUser[0].id]);
+    }
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        message: "Success"
+    })
+})
+
+router.post("/acceptPayout", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { userid, payout_id } = req.body;
+    if (!userid || !payout_id) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Missing field in payload"
+        })
+        return null
+    }
+    const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+    if (getUser.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "User not found."
+        })
+        return null
+    }
+
+    await connection.query("UPDATE group_payouts SET status = '1' WHERE id = ?", [payout_id])
+
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        message: "Success"
     })
 })
 
@@ -164,6 +403,45 @@ router.get("/get/:id", async function (req, res, next) {
 
 })
 
+router.get("/chats/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT * FROM group_message WHERE group_id = ?", [id])
+    if (getGroup.length <= 0) {
+        res.status(404).send({
+            ...StatusCodes.NotFound,
+            payload: {},
+            errorMessage: "Group not found"
+        })
+        return null
+    }
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
 router.get("/member/:id", async function (req, res, next) {
     if (!req.header("Authorization")) {
         res.status(401).send({
@@ -222,6 +500,74 @@ router.get("/transactions/:id", async function (req, res, next) {
     res.status(200).send({
         ...StatusCodes.Success,
         payload: getGroup
+    })
+
+
+
+})
+
+router.get("/payouts/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT group_payouts.*, users.user_id, users.first_name, users.last_name FROM group_payouts JOIN users ON group_payouts.user_id = users.user_id  WHERE group_payouts.group_id = ?", [id])
+    const getTotal = await connection.query("SELECT SUM(amount) as total FROM group_payouts WHERE group_id = ? AND status > 0", [id])
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup,
+        total: getTotal
+    })
+
+
+
+})
+
+router.get("/payouts/user/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT group_payouts.*, users.user_id, users.first_name, users.last_name FROM group_payouts JOIN users ON group_payouts.user_id = users.user_id  WHERE group_payouts.group_id = ?", [id])
+    const getTotal = await connection.query("SELECT SUM(amount) as total FROM group_payouts WHERE user_id = ? AND status > 0", [id])
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup,
+        total: getTotal
     })
 
 
@@ -290,7 +636,7 @@ router.delete("/delete", async function (req, res, next) {
     await connection.query("DELETE FROM groups WHERE id = ?", [group_id]);
     res.status(200).send({
         ...StatusCodes.Success,
-        message: "Group Created Successfully"
+        message: "Success"
     })
 })
 

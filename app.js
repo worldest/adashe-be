@@ -76,19 +76,19 @@ app.use(async (req, res, next) => {
 
   await connection.query(`INSERT INTO logs (route_link, query, body, ref) VALUES ('${endpoint}', '${req.query ? JSON.stringify(req.query) : "n/a"}', '${req.body ? JSON.stringify(req.body) : "n/a"}', '${ref}')`)
   const containsWord = containsWordFromArray(userAgent, device);
-  if (containsWord === true) {
-    console.log("EXIST")
-    next();
-    app.options('*', (req, res) => {
-      res.header("Access-Control-Allow-Methods", 'GET, PATCH, PUT, POST, DELETE, OPTIONS');
-      res.send();
-    })
-  } else {
-    console.log("NOTEXIST")
-    res.status(400).send({
-      ...StatusCodes.NotProccessed
-    })
-  }
+  // if (containsWord === true) {
+  console.log("EXIST")
+  next();
+  app.options('*', (req, res) => {
+    res.header("Access-Control-Allow-Methods", 'GET, PATCH, PUT, POST, DELETE, OPTIONS');
+    res.send();
+  })
+  // } else {
+  //   console.log("NOTEXIST")
+  //   res.status(400).send({
+  //     ...StatusCodes.NotProccessed
+  //   })
+  // }
 
 })
 

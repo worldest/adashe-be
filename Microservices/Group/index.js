@@ -41,7 +41,7 @@ router.post("/create", async function (req, res, next) {
         });
         return null
     }
-    const { userid, group_name, group_description = "N/A", payment_interval = "daily", start_date = "Not set" } = req.body;
+    const { userid, group_name, group_description = "N/A", payment_interval = "daily", start_date = "Not set", amount = 0.00 } = req.body;
     if (!userid || !group_name) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
@@ -75,7 +75,7 @@ router.post("/create", async function (req, res, next) {
     let m = date.getMonth() + 1;
     let y = date.getFullYear();
     let nextPayment = `${y}-${m}-${d}`
-    const insert = await connection.query("INSERT INTO groups (group_name, group_desc, host, group_status, payment_interval, start_date, next_payment) VALUES (?, ?, ?, ?, ?, ?, ?)", [group_name, group_description, userid, '1', payment_interval, start_date, nextPayment]);
+    const insert = await connection.query("INSERT INTO groups (group_name, group_desc, amount, host, group_status, payment_interval, start_date, next_payment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [group_name, group_description, amount, userid, '1', payment_interval, start_date, nextPayment]);
     console.log(insert);
     await connection.query("INSERT INTO group_members (host, user_id, group_id, status) VALUES (?, ?, ?, ?)", [userid, userid, insert.insertId, '1']);
     res.status(200).send({

@@ -157,6 +157,60 @@ router.post("/startGroup", async function (req, res, next) {
     })
 })
 
+router.post("/rearrange/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { group_id, data = [], userid } = req.body;
+    if (!data || !group_id || data.length <= 0 || !userid) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Missing field in payload"
+        })
+        return null
+    }
+    const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+    if (getUser.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "User not found."
+        })
+        return null
+    }
+    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ?", [group_id])
+    if (getGroup.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Group not found."
+        })
+        return null
+    }
+    await connection.query("DELETE FROM group_members WHERE group_id = ?", [group_id]);
+    data.map(async (o) => {
+        await connection.query("INSERT INTO group_members (host, user_id, group_id) VALUES (?, ?, ?)", [userid, o.user_id, group_id]);
+    })
+    res.status(200).send({
+        ...StatusCodes.Success,
+        message: "Success"
+    })
+})
+
 router.post("/sendMessage", async function (req, res, next) {
     if (!req.header("Authorization")) {
         res.status(401).send({

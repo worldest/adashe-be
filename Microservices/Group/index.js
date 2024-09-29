@@ -31,9 +31,9 @@ router.post("/create", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -76,7 +76,7 @@ router.post("/create", async function (req, res, next) {
     let y = date.getFullYear();
     let nextPayment = `${y}-${m}-${d}`
     const insert = await connection.query("INSERT INTO groups (group_name, group_desc, amount, host, group_status, payment_interval, start_date, next_payment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [group_name, group_description, amount, userid, '1', payment_interval, start_date, nextPayment]);
-    console.log(insert);
+    // console.log(insert);
     await connection.query("INSERT INTO group_members (host, user_id, group_id, status) VALUES (?, ?, ?, ?)", [userid, userid, insert.insertId, '1']);
     res.status(200).send({
         ...StatusCodes.Success,
@@ -94,9 +94,9 @@ router.post("/startGroup", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -125,6 +125,14 @@ router.post("/startGroup", async function (req, res, next) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "Group not found."
+        })
+        return null
+    }
+    const getGroup_ = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND status = '0'", [group_id])
+    if (getGroup.length > 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "All members must accept invitation to start group."
         })
         return null
     }
@@ -167,7 +175,7 @@ router.post("/rearrange/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
 
     if (!isValid) {
@@ -201,9 +209,11 @@ router.post("/rearrange/:id", async function (req, res, next) {
         })
         return null
     }
-    await connection.query("DELETE FROM group_members WHERE group_id = ?", [group_id]);
-    data.map(async (o) => {
-        await connection.query("INSERT INTO group_members (host, user_id, group_id) VALUES (?, ?, ?)", [userid, o.user_id, group_id]);
+    // await connection.query("DELETE FROM group_members WHERE group_id = ?", [group_id]);
+    const getFirst = await connection.query("SELECT * FROM group_members WHERE group_id=? ORDER BY id ASC", [group_id])
+    const firstID = getFirst[0].id
+    data.map(async (o, i) => {
+        await connection.query("UPDATE group_members SET user_id = ?, status = ?, payout_status = ? WHERE id = ?", [o.user_id, o.status, o.payout_status, firstID + i]);
     })
     res.status(200).send({
         ...StatusCodes.Success,
@@ -221,9 +231,9 @@ router.post("/sendMessage", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -274,9 +284,9 @@ router.post("/processPayout", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -310,19 +320,34 @@ router.post("/processPayout", async function (req, res, next) {
     }
     const { group_round } = getGroup[0]
     await connection.query("INSERT INTO group_payouts (host, user_id, group_id, receipt, amount) VALUES (?, ?, ?, ?, ?)", [userid, receiver_id, group_id, receipt, amount])
-    let getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY RAND() LIMIT 1", [group_id, group_round]);
+    let getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY id ASC LIMIT 1", [group_id, '1']);
+    
     if (getAUser.length > 0) {
-
-        const payout_status = parseInt(getAUser[0].payout_status) + 1;
-        await connection.query("UPDATE group_members SET current_round = '0' WHERE group_id = ?", [group_id]);
-        await connection.query("UPDATE group_members SET payout_status = ?, current_round = '1' WHERE id = ?", [payout_status, getAUser[0].id]);
+        await connection.query("UPDATE group_members SET payout_status = ?", [0])
+        const getNext = await connection.query("SELECT * FROM group_members WHERE id > ? ORDER BY id ASC LIMIT 1", [getAUser[0].id]);
+        console.log("NEXT", getNext[0])
+        if (getNext.length > 0) {
+            const update = await connection.query("UPDATE group_members SET payout_status = ? WHERE id = ?", [1, getNext[0].id])
+            console.log("UPDATING NEXT")
+        } else {
+            const getFirst = await connection.query("SELECT * FROM group_members WHERE group_id = ? ORDER BY id ASC LIMIT 1", [group_id]);
+            const update = await connection.query("UPDATE group_members SET payout_status = ? WHERE id = ?", [1, getFirst[0].id])
+            console.log("UPDATING FIRST", getFirst[0].id)
+        }
     } else {
-        let updateGroupRound = parseInt(group_round) + 1
-        await connection.query("UPDATE groups SET group_round = group_round + 1 WHERE id = ?", [group_id]);
-        let getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY RAND() LIMIT 1", [group_id, updateGroupRound])
-        const payout_status = parseInt(getAUser[0].payout_status) + 1;
-        await connection.query("UPDATE group_members SET current_round = '0' WHERE group_id = ?", [group_id]);
-        await connection.query("UPDATE group_members SET payout_status = ?, current_round = '1' WHERE id = ?", [payout_status, getAUser[0].id]);
+        await connection.query(`
+            UPDATE group_members
+SET payout_status = '1'
+WHERE id = (
+  SELECT id FROM (
+    SELECT id
+    FROM group_members
+    WHERE group_id = ?
+    ORDER BY id
+    LIMIT 1 OFFSET 1
+  ) AS subquery
+);
+        `, [group_id]);
     }
 
     res.status(200).send({
@@ -387,9 +412,9 @@ router.get("/fetch/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -407,7 +432,7 @@ router.get("/fetch/:id", async function (req, res, next) {
         })
         return null
     }
-    const getMembers = await connection.query("SELECT * FROM group_members JOIN users ON group_members.user_id = users.user_id WHERE group_id = ? ORDER BY group_members.id ASC", [id])
+    const getMembers = await connection.query("SELECT group_members.*, users.user_id, users.first_name, users.last_name FROM group_members JOIN users ON group_members.user_id = users.user_id WHERE group_id = ? ORDER BY group_members.id ASC", [id])
     res.status(200).send({
         ...StatusCodes.Success,
         payload: getGroup[0],
@@ -428,9 +453,9 @@ router.get("/get/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -467,9 +492,9 @@ router.get("/chats/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -480,13 +505,76 @@ router.get("/chats/:id", async function (req, res, next) {
     const { id } = req.params;
     const getGroup = await connection.query("SELECT * FROM group_message WHERE group_id = ?", [id])
     if (getGroup.length <= 0) {
-        res.status(404).send({
-            ...StatusCodes.NotFound,
-            payload: {},
-            errorMessage: "Group not found"
+        res.status(200).send({
+            ...StatusCodes.Success,
+            payload: []
         })
         return null
     }
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
+router.patch("/accept/:id/:userid", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    // console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    // console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id, userid } = req.params;
+    const getGroup = await connection.query("UPDATE group_members SET status = '1' WHERE group_id = ? AND user_id = ?", [id, userid])
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
+router.patch("/decline/:id/:userid", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    // console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    // console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id, userid } = req.params;
+    const getGroup = await connection.query("DELETE FROM group_members WHERE group_id = ? AND user_id = ?", [id, userid])
+
     res.status(200).send({
         ...StatusCodes.Success,
         payload: getGroup
@@ -506,9 +594,9 @@ router.get("/member/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -517,7 +605,71 @@ router.get("/member/:id", async function (req, res, next) {
         return null
     }
     const { id } = req.params;
-    const getGroup = await connection.query("SELECT * FROM group_members JOIN groups ON groups.id = group_members.group_id WHERE user_id = ?", [id])
+    const getGroup = await connection.query("SELECT * FROM group_members JOIN groups ON groups.id = group_members.group_id WHERE user_id = ? AND group_members.status = '1'", [id])
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
+router.get("/member/pending/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    // console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    // console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT group_members.*, groups.*, users.user_id, users.first_name, users.last_name FROM group_members JOIN groups ON groups.id = group_members.group_id JOIN users ON users.user_id = group_members.host WHERE group_members.user_id = ? AND group_members.status = '0'", [id])
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
+router.get("/member/all/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    // console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    // console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { id } = req.params;
+    const getGroup = await connection.query("SELECT * FROM groups WHERE group_status != 'running'")
 
     res.status(200).send({
         ...StatusCodes.Success,
@@ -538,9 +690,9 @@ router.get("/transactions/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -549,7 +701,7 @@ router.get("/transactions/:id", async function (req, res, next) {
         return null
     }
     const { id } = req.params;
-    const getGroup = await connection.query("SELECT * FROM group_txn WHERE group_id = ?", [id])
+    const getGroup = await connection.query("SELECT group_txn.*, users.user_id, users.first_name, users.last_name FROM group_txn JOIN users ON users.user_id = group_txn.user_id WHERE group_id = ? ORDER BY group_txn.status ASC", [id])
 
     res.status(200).send({
         ...StatusCodes.Success,
@@ -570,9 +722,9 @@ router.get("/payouts/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -604,9 +756,9 @@ router.get("/payouts/user/:id", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -638,9 +790,9 @@ router.delete("/delete", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -704,9 +856,9 @@ router.patch("/edit", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -755,9 +907,9 @@ router.post("/invite", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -817,9 +969,9 @@ router.delete("/user/delete", async function (req, res, next) {
     }
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    console.log("TOKEN", token)
+    // console.log("TOKEN", token)
     let isValid = await VerifyToken(token)
-    console.log("PACKET", isValid)
+    // console.log("PACKET", isValid)
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,

@@ -29,11 +29,11 @@ connection.getConnection((err, connection) => {
 
 
 connection.on('acquire', function (connection) {
-  console.log('Connection %d acquired', connection.threadId);
+  // console.log('Connection %d acquired', connection.threadId);
 });
 
 connection.on('release', function (connection) {
-  console.log('Connection %d released', connection.threadId);
+  // console.log('Connection %d released', connection.threadId);
 });
 
 

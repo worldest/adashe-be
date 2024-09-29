@@ -64,20 +64,20 @@ app.use(async (req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   // res.redirect(302, process.env.BASE_URL);
   const userAgent = req.get('User-Agent');
-  console.log('User-Agent:', userAgent);
+  // console.log('User-Agent:', userAgent);
 
   // Remote IP address of the client
   const ipAddress = req.ip;
-  console.log('IP Address:', ipAddress);
+  // console.log('IP Address:', ipAddress);
 
   const ref = `${userAgent} (${ipAddress})`
-  console.log("USER", ref)
+  // console.log("USER", ref)
   var endpoint = req.hostname + req.url;
 
   await connection.query(`INSERT INTO logs (route_link, query, body, ref) VALUES ('${endpoint}', '${req.query ? JSON.stringify(req.query) : "n/a"}', '${req.body ? JSON.stringify(req.body) : "n/a"}', '${ref}')`)
   const containsWord = containsWordFromArray(userAgent, device);
   // if (containsWord === true) {
-  console.log("EXIST")
+  // console.log("EXIST")
   next();
   app.options('*', (req, res) => {
     res.header("Access-Control-Allow-Methods", 'GET, PATCH, PUT, POST, DELETE, OPTIONS');

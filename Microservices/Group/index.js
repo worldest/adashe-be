@@ -321,7 +321,7 @@ router.post("/processPayout", async function (req, res, next) {
     const { group_round } = getGroup[0]
     await connection.query("INSERT INTO group_payouts (host, user_id, group_id, receipt, amount) VALUES (?, ?, ?, ?, ?)", [userid, receiver_id, group_id, receipt, amount])
     let getAUser = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND payout_status = ? ORDER BY id ASC LIMIT 1", [group_id, '1']);
-    
+
     if (getAUser.length > 0) {
         await connection.query("UPDATE group_members SET payout_status = ?", [0])
         const getNext = await connection.query("SELECT * FROM group_members WHERE id > ? ORDER BY id ASC LIMIT 1", [getAUser[0].id]);
@@ -654,31 +654,211 @@ router.get("/member/all/:id", async function (req, res, next) {
             ...StatusCodes.AuthError,
             errorMessage: "Token not present"
         });
-        return null
+        return;
     }
+
     let Bearer = req.header("Authorization");
     const token = await HeaderToken(Bearer);
-    // console.log("TOKEN", token)
-    let isValid = await VerifyToken(token)
-    // console.log("PACKET", isValid)
+    let isValid = await VerifyToken(token);
+
     if (!isValid) {
         res.status(401).send({
             ...StatusCodes.AuthError,
             errorMessage: "Authentication error"
         });
-        return null
+        return;
     }
+
     const { id } = req.params;
-    const getGroup = await connection.query("SELECT * FROM groups WHERE group_status != 'running'")
+    const page = parseInt(req.query.page) || 1;  // Default to page 1 if not provided
+    const pageSize = parseInt(req.query.pageSize) || 15;  // Default page size to 10 if not provided
+    const offset = (page - 1) * pageSize;  // Calculate the offset
+    const query = req.query.query
 
-    res.status(200).send({
-        ...StatusCodes.Success,
-        payload: getGroup
-    })
+    try {
+        // Get total count of all groups (without pagination)
+        const [totalCountResult] = await connection.query("SELECT COUNT(*) as totalCount FROM groups WHERE group_status != 'running'");
 
+        const totalCount = totalCountResult.totalCount;
 
+        // Fetch paginated results
+        const getGroup = await connection.query(
+            `SELECT * FROM groups WHERE group_status != 'running' AND group_name LIKE '%${query}%' LIMIT ? OFFSET ?`,
+            [pageSize, offset]
+        );
 
-})
+        res.status(200).send({
+            ...StatusCodes.Success,
+            payload: getGroup,
+            pagination: {
+                currentPage: page,
+                pageSize: pageSize,
+                totalItems: totalCount,
+                totalPages: Math.ceil(totalCount / pageSize)
+            }
+        });
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            ...StatusCodes.ServerError,
+            errorMessage: "An error occurred while fetching group data",
+            error: error.message
+        });
+    }
+});
+
+router.post("/member/request/:userid/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return;
+    }
+
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    let isValid = await VerifyToken(token);
+
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return;
+    }
+
+    const { id, userid } = req.params;
+
+    try {
+        // Get total count of all groups (without pagination)
+        const groupExist = await connection.query("SELECT * FROM groups WHERE id = ?", [id]);
+        const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+        if (groupExist.length <= 0) {
+            res.status(400).send({
+                ...StatusCodes.NotProccessed,
+                errorMessage: "Group do not exist"
+            })
+            return null;
+        }
+        if (getUser.length <= 0) {
+            res.status(400).send({
+                ...StatusCodes.NotProccessed,
+                errorMessage: "User do not exist"
+            })
+            return null;
+        }
+        const { host } = groupExist[0];
+        const { phone } = getUser[0]
+        await connection.query(`INSERT INTO group_request_notifications (user_id, group_id, user_phone, receiver_id) VALUES (?, ?, ?, ?)`, [userid, id, phone, host]);
+        console.log(phone)
+
+        res.status(200).send({
+            ...StatusCodes.Success,
+            message: "Request sent successfully"
+        });
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            ...StatusCodes.ServerError,
+            errorMessage: "An error occurred while fetching group data"
+        });
+    }
+});
+router.delete("/member/request/:userid/:id", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return;
+    }
+
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    let isValid = await VerifyToken(token);
+
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return;
+    }
+
+    const { id, userid } = req.params;
+
+    try {
+        // Get total count of all groups (without pagination)
+
+        await connection.query(`DELETE FROM group_request_notifications WHERE id = ?`, [id]);
+
+        res.status(200).send({
+            ...StatusCodes.Success,
+            message: "Request Declined successfully"
+        });
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            ...StatusCodes.ServerError,
+            errorMessage: "An error occurred while fetching group data"
+        });
+    }
+});
+
+router.get("/member/request/:userid", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return;
+    }
+
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    let isValid = await VerifyToken(token);
+
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return;
+    }
+
+    const { userid } = req.params;
+
+    try {
+        // Get total count of all groups (without pagination)
+
+        const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+
+        if (getUser.length <= 0) {
+            res.status(400).send({
+                ...StatusCodes.NotProccessed,
+                errorMessage: "User do not exist"
+            })
+            return null;
+        }
+        const getRequests = await connection.query(`SELECT users.user_id, users.first_name, users.last_name, groups.*, group_request_notifications.* FROM group_request_notifications JOIN users ON users.user_id = group_request_notifications.user_id JOIN groups ON group_request_notifications.group_id = groups.id WHERE group_request_notifications.receiver_id = ? AND group_request_notifications.status = '0'`, [userid]);
+        res.status(200).send({
+            ...StatusCodes.Success,
+            payload: getRequests
+        });
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({
+            ...StatusCodes.ServerError,
+            errorMessage: "An error occurred while fetching group data",
+            payload: []
+        });
+    }
+});
 
 router.get("/transactions/:id", async function (req, res, next) {
     if (!req.header("Authorization")) {
@@ -953,6 +1133,7 @@ router.post("/invite", async function (req, res, next) {
     }
     const invitedId = getInvitedUser[0].user_id;
     await connection.query("INSERT INTO group_members (host, user_id, group_id) VALUES (?, ?, ?)", [userid, invitedId, group_id]);
+    await connection.query("DELETE FROM group_request_notifications WHERE user_phone = ? AND group_id = ?", [invited_userid, group_id])
     res.status(200).send({
         ...StatusCodes.Success,
         message: `${getInvitedUser[0].first_name} has been invited successfully`

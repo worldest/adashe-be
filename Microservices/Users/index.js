@@ -112,8 +112,8 @@ router.patch("/update", async function (req, res, next) {
         });
         return null
     }
-    const { userid, first_name, last_name, email, phone } = req.body;
-    if (!userid || !first_name || !last_name || !phone || !email) {
+    const { userid, first_name, last_name } = req.body;
+    if (!userid || !first_name || !last_name) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "Missing field in payload"
@@ -128,7 +128,7 @@ router.patch("/update", async function (req, res, next) {
         })
         return null
     }
-    await connection.query("UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ? WHERE user_id = ?", [first_name, last_name, email, phone, userid]);
+    await connection.query("UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?", [first_name, last_name, userid]);
     res.status(200).send({
         ...StatusCodes.Success,
         message: "Profile edited Successfully"

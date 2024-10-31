@@ -92,7 +92,7 @@ router.get("/transactions/:id", async function (req, res, next) {
 
 })
 
-router.patch("/update", async function (req, res, next) {
+router.patch("/update/:userid", async function (req, res, next) {
     if (!req.header("Authorization")) {
         res.status(401).send({
             ...StatusCodes.AuthError,
@@ -112,8 +112,9 @@ router.patch("/update", async function (req, res, next) {
         });
         return null
     }
-    const { userid, first_name, last_name } = req.body;
-    if (!userid || !first_name || !last_name) {
+    const { userid } = req.params
+    const { first_name, last_name } = req.body;
+    if (!first_name || !last_name) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "Missing field in payload"

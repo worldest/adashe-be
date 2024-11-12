@@ -46,9 +46,15 @@ router.post("/login", async function (req, res, next) {
     });
 
     let country_code_ = country_code.includes("+") ? country_code : "+" + country_code
+    if (userid.toString().length > 10 || userid.toString().length < 10) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678"
+        })
+        return null
+    }
 
-
-    connection.query(`SELECT * FROM users WHERE email = ? OR phone = ?`, [userid, userid], async function (error, results, fields) {
+    connection.query(`SELECT * FROM users WHERE phone = ?`, [userid, userid], async function (error, results, fields) {
         // if (error) throw error;
 
         if (error !== null) {
@@ -110,6 +116,14 @@ router.post("/register", async function (req, res, next) {
         res.status(400).send({
             ...StatusCodes.MissingPayload,
             errorMessage: "All fields are required"
+        })
+        return null
+    }
+
+    if (phone.toString().length > 10 || phone.toString().length < 10) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678"
         })
         return null
     }

@@ -49,7 +49,8 @@ router.post("/login", async function (req, res, next) {
     if (userid.toString().length > 10 || userid.toString().length < 10) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
-            errorMessage: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678"
+            errorMessage: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678",
+            message: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678"
         })
         return null
     }
@@ -123,7 +124,8 @@ router.post("/register", async function (req, res, next) {
     if (phone.toString().length > 10 || phone.toString().length < 10) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
-            errorMessage: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678"
+            errorMessage: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678",
+            message: "Invalid phone number. Your  phone number should be 10 digits long e.g 8012345678"
         })
         return null
     }

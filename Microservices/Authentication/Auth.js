@@ -88,7 +88,7 @@ router.post("/login", async function (req, res, next) {
                     }
                 });
             } else {
-                res.status(401).send({
+                res.status(400).send({
                     ...StatusCodes.Success,
                     message: "Password is not correct.",
                 });

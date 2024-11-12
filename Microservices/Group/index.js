@@ -1114,7 +1114,13 @@ router.post("/invite", async function (req, res, next) {
         return null
     }
 
-    const getInvitedUser = await connection.query("SELECT * FROM users WHERE phone = ?", [invited_userid])
+    let parsedPhone;
+    if(invited_userid.toString().length >  10){
+        parsedPhone = invited_userid.toString().slice(1)
+    }else{
+        parsedPhone = invited_userid.toString()
+    }
+    const getInvitedUser = await connection.query("SELECT * FROM users WHERE phone = ?", [parsedPhone])
     if (getInvitedUser.length <= 0) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,

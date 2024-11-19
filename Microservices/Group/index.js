@@ -129,7 +129,7 @@ router.post("/startGroup", async function (req, res, next) {
         return null
     }
     const getGroup_ = await connection.query("SELECT * FROM group_members WHERE group_id = ? AND status = '0'", [group_id])
-    if (getGroup.length > 0) {
+    if (getGroup_.length > 0) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "All members must accept invitation to start group."
@@ -1115,9 +1115,9 @@ router.post("/invite", async function (req, res, next) {
     }
 
     let parsedPhone;
-    if(invited_userid.toString().length >  10){
+    if (invited_userid.toString().length > 10) {
         parsedPhone = invited_userid.toString().slice(1)
-    }else{
+    } else {
         parsedPhone = invited_userid.toString()
     }
     const getInvitedUser = await connection.query("SELECT * FROM users WHERE phone = ?", [parsedPhone])

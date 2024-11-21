@@ -165,6 +165,60 @@ router.post("/startGroup", async function (req, res, next) {
     })
 })
 
+router.post("/deleteGroup", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    // console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    // console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const { userid, group_id, start_date } = req.body;
+    if (!userid || !group_id) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Missing field in payload"
+        })
+        return null
+    }
+    const getUser = await connection.query("SELECT * FROM users WHERE user_id = ?", [userid])
+    if (getUser.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "User not found."
+        })
+        return null
+    }
+    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ?", [group_id])
+    if (getGroup.length <= 0) {
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Group not found."
+        })
+        return null
+    }
+
+    await connection.query("DELETE FROM groups WHERE id = ?", [group_id])
+
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        message: "Group deleted successfully"
+    })
+})
+
 router.post("/rearrange/:id", async function (req, res, next) {
     if (!req.header("Authorization")) {
         res.status(401).send({
@@ -324,7 +378,7 @@ router.post("/processPayout", async function (req, res, next) {
 
     if (getAUser.length > 0) {
         await connection.query("UPDATE group_members SET payout_status = ?", [0])
-        const getNext = await connection.query("SELECT * FROM group_members WHERE id > ? ORDER BY id ASC LIMIT 1", [getAUser[0].id]);
+        const getNext = await connection.query("SELECT * FROM group_members WHERE id > ? AND group_id = ? ORDER BY id ASC LIMIT 1", [getAUser[0].id, group_id]);
         console.log("NEXT", getNext[0])
         if (getNext.length > 0) {
             const update = await connection.query("UPDATE group_members SET payout_status = ? WHERE id = ?", [1, getNext[0].id])
@@ -432,11 +486,35 @@ router.get("/fetch/:id", async function (req, res, next) {
         })
         return null
     }
-    const getMembers = await connection.query("SELECT group_members.*, users.user_id, users.first_name, users.last_name FROM group_members JOIN users ON group_members.user_id = users.user_id WHERE group_id = ? ORDER BY group_members.id ASC", [id])
+    const getTxnTotal = await connection.query(`SELECT SUM(amount) AS total_amount
+FROM group_txn
+WHERE MONTH(created_at) = MONTH(CURRENT_DATE())
+  AND YEAR(created_at) = YEAR(CURRENT_DATE())
+ AND group_id = ? AND status = '1'`, [id])
+    console.log("COUNT", getTxnTotal)
+    const getMembers = await connection.query(`
+  SELECT 
+    group_members.*, 
+    users.user_id, 
+    users.first_name, 
+    users.last_name 
+  FROM group_members 
+  JOIN users 
+    ON group_members.user_id = users.user_id 
+  WHERE group_members.group_id = ? 
+  ORDER BY 
+    CASE 
+      WHEN group_members.payout_status = 1 THEN 0 
+      ELSE 1 
+    END, 
+    group_members.id ASC
+`, [id]);
+
     res.status(200).send({
         ...StatusCodes.Success,
         payload: getGroup[0],
-        members: getMembers
+        members: getMembers,
+        current_payout: getTxnTotal
     })
 
 
@@ -881,7 +959,7 @@ router.get("/transactions/:id", async function (req, res, next) {
         return null
     }
     const { id } = req.params;
-    const getGroup = await connection.query("SELECT group_txn.*, users.user_id, users.first_name, users.last_name FROM group_txn JOIN users ON users.user_id = group_txn.user_id WHERE group_id = ? ORDER BY group_txn.status ASC", [id])
+    const getGroup = await connection.query("SELECT group_txn.*, users.user_id, users.first_name, users.last_name FROM group_txn JOIN users ON users.user_id = group_txn.user_id WHERE group_id = ? AND MONTH(group_txn.created_at) = MONTH(CURRENT_DATE()) ORDER BY group_txn.status ASC", [id])
 
     res.status(200).send({
         ...StatusCodes.Success,
@@ -914,7 +992,7 @@ router.get("/payouts/:id", async function (req, res, next) {
     }
     const { id } = req.params;
     const getGroup = await connection.query("SELECT group_payouts.*, users.user_id, users.first_name, users.last_name FROM group_payouts JOIN users ON group_payouts.user_id = users.user_id  WHERE group_payouts.group_id = ?", [id])
-    const getTotal = await connection.query("SELECT SUM(amount) as total FROM group_payouts WHERE group_id = ? AND status > 0", [id])
+    const getTotal = await connection.query("SELECT SUM(amount) as total FROM group_payouts WHERE group_id = ?", [id])
 
     res.status(200).send({
         ...StatusCodes.Success,

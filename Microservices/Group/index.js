@@ -992,7 +992,11 @@ router.get("/payouts/:id", async function (req, res, next) {
     }
     const { id } = req.params;
     const getGroup = await connection.query("SELECT group_payouts.*, users.user_id, users.first_name, users.last_name FROM group_payouts JOIN users ON group_payouts.user_id = users.user_id  WHERE group_payouts.group_id = ?", [id])
-    const getTotal = await connection.query("SELECT SUM(amount) as total FROM group_payouts WHERE group_id = ?", [id])
+    const getTotal = await connection.query(
+        "SELECT IFNULL(SUM(amount), 0) as total FROM group_payouts WHERE group_id = ?",
+        [id]
+    );
+
 
     res.status(200).send({
         ...StatusCodes.Success,
@@ -1026,7 +1030,11 @@ router.get("/payouts/user/:id", async function (req, res, next) {
     }
     const { id } = req.params;
     const getGroup = await connection.query("SELECT group_payouts.*, users.user_id, users.first_name, users.last_name FROM group_payouts JOIN users ON group_payouts.user_id = users.user_id  WHERE group_payouts.group_id = ?", [id])
-    const getTotal = await connection.query("SELECT SUM(amount) as total FROM group_payouts WHERE user_id = ? AND status > 0", [id])
+    const getTotal = await connection.query(
+        "SELECT IFNULL(SUM(amount), 0) as total FROM group_payouts WHERE user_id = ? AND status > 0",
+        [id]
+    );
+
 
     res.status(200).send({
         ...StatusCodes.Success,

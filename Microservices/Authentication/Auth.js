@@ -136,7 +136,7 @@ router.post("/register", async function (req, res, next) {
         if (error !== null) {
             res.status(500).send({
                 ...StatusCodes.ServerError,
-                errorMessage: "Query error, please retry later"
+                errorMessage: "An error occurred. Please check your inputs and retry"
             });
             return null
         }

@@ -136,7 +136,8 @@ router.post("/register", async function (req, res, next) {
         if (error !== null) {
             res.status(500).send({
                 ...StatusCodes.ServerError,
-                errorMessage: "An error occurred. Please check your inputs and retry"
+                errorMessage: "An error occurred. Please check your inputs and retry",
+                message: "An error occurred. Please check your inputs and retry"
             });
             return null
         }
@@ -144,7 +145,7 @@ router.post("/register", async function (req, res, next) {
             res.status(404).send({
                 ...StatusCodes.NotFound,
                 errorMessage: "User with that phone or email exists",
-                errorMessage: "User with that phone or email exists"
+                message: "User with that phone or email exists"
             });
             return null
         } else {

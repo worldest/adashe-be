@@ -89,7 +89,7 @@ router.post("/login", async function (req, res, next) {
                 });
             } else {
                 res.status(400).send({
-                    ...StatusCodes.Success,
+                    ...StatusCodes.AuthError,
                     message: "Password is not correct.",
                 });
             }
@@ -579,6 +579,22 @@ router.post("/resend_otp/:phone", async function (req, res, next) {
                 errorMessage: "No onboarding or profile found"
             })
         }
+    })
+})
+
+router.get("/decrypt_pass/:enc", async function (req, res, next) {
+    const password = req.params.enc
+    const passwordEncrypt = await Decrypt(password)
+    res.status(200).send({
+        message: passwordEncrypt
+    })
+})
+
+router.get("/encrypt_pass/:enc", async function (req, res, next) {
+    const password = req.params.enc
+    const passwordEncrypt = await Encrypt(password)
+    res.status(200).send({
+        message: passwordEncrypt
     })
 })
 module.exports = router

@@ -60,6 +60,53 @@ router.get("/:id", async function (req, res, next) {
 
 })
 
+router.get("/users/all/:userid", async function (req, res, next) {
+    const { userid } = req.params;
+    // if (userid !== "14bJgK4npfyzs1ij2gEemaSnV86Sj2bN" || userid !== "wWDk1ZbO54aqHV4WlEgC1t7bTcxwyD5x" || userid !== "3cnSvhdRfeo1XG5cWMhJHffnvO5f7Ug8") {
+    //     res.status(200).send({
+    //         ...StatusCodes.Success,
+    //         message: "Admin only route",
+    //         payload: []
+    //     })
+    //     return null
+    // }
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+
+    const getGroup = await connection.query("SELECT * FROM users")
+    if (getGroup.length <= 0) {
+        res.status(404).send({
+            ...StatusCodes.Success,
+            payload: []
+        })
+        return null
+    }
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
 router.get("/transactions/:id", async function (req, res, next) {
     if (!req.header("Authorization")) {
         res.status(401).send({
@@ -91,6 +138,70 @@ router.get("/transactions/:id", async function (req, res, next) {
 
 
 })
+
+router.get("/transactions/get/all", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const getGroup = await connection.query("SELECT * FROM groups LEFT JOIN group_txn ON group_txn.group_id = groups.id")
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
+
+router.get("/payouts/get/all", async function (req, res, next) {
+    if (!req.header("Authorization")) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Token not present"
+        });
+        return null
+    }
+    let Bearer = req.header("Authorization");
+    const token = await HeaderToken(Bearer);
+    console.log("TOKEN", token)
+    let isValid = await VerifyToken(token)
+    console.log("PACKET", isValid)
+    if (!isValid) {
+        res.status(401).send({
+            ...StatusCodes.AuthError,
+            errorMessage: "Authentication error"
+        });
+        return null
+    }
+    const getGroup = await connection.query("SELECT SUM(amount) as total_amount FROM group_payouts")
+
+    res.status(200).send({
+        ...StatusCodes.Success,
+        payload: getGroup
+    })
+
+
+
+})
+
 
 router.patch("/update/:userid", async function (req, res, next) {
     if (!req.header("Authorization")) {

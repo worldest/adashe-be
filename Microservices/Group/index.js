@@ -210,6 +210,14 @@ router.post("/deleteGroup", async function (req, res, next) {
         return null
     }
 
+    if (getGroup[0].group_status !== 1 || getGroup[0].group_status !== "1"){
+        res.status(400).send({
+            ...StatusCodes.NotProccessed,
+            errorMessage: "Only group that has not started can be deleted."
+        })
+        return null
+    }
+
     await connection.query("DELETE FROM groups WHERE id = ?", [group_id])
 
 

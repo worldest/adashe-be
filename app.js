@@ -101,7 +101,8 @@ const Users = require("./Microservices/Users/index")
 app.use("/api/v1/user", Users);
 const Payments = require("./Microservices/Payments/index")
 app.use("/api/v1/payments", Payments);
-
+const KYC = require("./Microservices/KYC/index");
+app.use("/api/v1/kyc", KYC);
 
 function containsWordFromArray(string, wordsArray) {
   // Convert the string to lowercase for case-insensitive comparison

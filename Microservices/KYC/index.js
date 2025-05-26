@@ -305,8 +305,8 @@ router.post("/upgrade/tier_three/:userid", async function (req, res, next) {
         })
         return null
     }
-    const { means_of_id_link, address, dob, expiry, id_number } = req.body;
-    if (!means_of_id_link || !address || !dob || !expiry || !id_number) {
+    const { means_of_id_link, address, dob, expiry, id_number, bvn } = req.body;
+    if (!means_of_id_link || !address || !dob || !expiry || !id_number || !bvn) {
         res.status(400).send({
             ...StatusCodes.MissingPayload,
             errorMessage: "All fields are required"
@@ -337,7 +337,7 @@ router.post("/upgrade/tier_three/:userid", async function (req, res, next) {
             return null
         }
         // await connection.query("UPDATE kyc SET level = '2' WHERE user_id = ?", [userid])
-        await connection.query(`UPDATE kyc_details SET id_number = ?, address = ?, means_of_id_link=?, expiry = ?, dob = ?, status='1' WHERE user_id=?`, [id_number, address, means_of_id_link, expiry, dob, userid]);
+        await connection.query(`UPDATE kyc_details SET bvn = ?, id_number = ?, address = ?, means_of_id_link=?, expiry = ?, dob = ?, status='1' WHERE user_id=?`, [bvn, id_number, address, means_of_id_link, expiry, dob, userid]);
         res.status(200).send({
             ...StatusCodes.Success,
             message: "Upgrade request sent for approval, please allow 24-48 workings hours."
@@ -353,7 +353,7 @@ router.post("/upgrade/tier_three/:userid", async function (req, res, next) {
             })
             return null
         }
-        await connection.query(`UPDATE kyc_details SET id_number = ?, address = ?, means_of_id_link=?, expiry = ?, dob = ?, status='1' WHERE user_id=?`, [id_number, address, means_of_id_link, expiry, dob, userid]);
+        await connection.query(`UPDATE kyc_details SET bvn = ?, id_number = ?, address = ?, means_of_id_link=?, expiry = ?, dob = ?, status='1' WHERE user_id=?`, [bvn, id_number, address, means_of_id_link, expiry, dob, userid]);
         res.status(200).send({
             ...StatusCodes.Success,
             message: "Upgrade request sent for approval, please allow 24-48 workings hours."

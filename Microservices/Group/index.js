@@ -201,16 +201,16 @@ router.post("/deleteGroup", async function (req, res, next) {
         })
         return null
     }
-    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ?", [group_id])
+    const getGroup = await connection.query("SELECT * FROM groups WHERE id = ? AND host = ?", [group_id, userid])
     if (getGroup.length <= 0) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
-            errorMessage: "Group not found."
+            errorMessage: "Group not found or you do not have permission to perform this operation."
         })
         return null
     }
 
-    if (getGroup[0].group_status !== 1 || getGroup[0].group_status !== "1"){
+    if (getGroup[0].group_status != 1 && getGroup[0].group_status !== "1") {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "Only group that has not started can be deleted."

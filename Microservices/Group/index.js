@@ -1097,14 +1097,22 @@ router.delete("/delete", async function (req, res, next) {
         })
         return null
     }
-    const getGroupMembers = await connection.query("SELECT * FROM group_members WHERE group_id = ?", [group_id])
-    if (getGroupMembers.length >= 0) {
+    const { group_status } = getGroup[0];
+    if (group_status != 1 || group_status !== "1") {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
-            errorMessage: "You cannot delete group with pending/active user(s)"
+            errorMessage: "You can not delete this group because it is " + group_status
         })
         return null
     }
+    // const getGroupMembers = await connection.query("SELECT * FROM group_members WHERE group_id = ?", [group_id])
+    // if (getGroupMembers.length >= 0) {
+    //     res.status(400).send({
+    //         ...StatusCodes.NotProccessed,
+    //         errorMessage: "You cannot delete group with pending/active user(s)"
+    //     })
+    //     return null
+    // }
     const getGroupTransactions = await connection.query("SELECT * FROM group_txn WHERE group_id = ?", [group_id])
     if (getGroupTransactions.length >= 0) {
         res.status(400).send({

@@ -1114,7 +1114,7 @@ router.delete("/delete", async function (req, res, next) {
     //     return null
     // }
     const getGroupTransactions = await connection.query("SELECT * FROM group_txn WHERE group_id = ?", [group_id])
-    if (getGroupTransactions.length >= 0) {
+    if (getGroupTransactions.length > 0) {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "You cannot delete group with transaction history"

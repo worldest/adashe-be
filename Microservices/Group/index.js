@@ -1098,7 +1098,7 @@ router.delete("/delete", async function (req, res, next) {
         return null
     }
     const { group_status } = getGroup[0];
-    if (group_status != 1 || group_status !== "1") {
+    if (group_status != 1 && group_status !== "1") {
         res.status(400).send({
             ...StatusCodes.NotProccessed,
             errorMessage: "You can not delete this group because it is " + group_status
